@@ -44,13 +44,13 @@
 ;; Pathname of Google's protocol buffer compiler.  You must replace this pathname with the
 ;; appropriate one for your system or set its value before this file is loaded.
 
-(defvar *protoc* #p"/local/software/package/google-protobuf/bin/protoc"
+(defvar *protoc* #p"/usr/bin/protoc"
   "Pathname of Google's protocol buffer compiler.")
 
 ;; Pathname of the Lisp protocol buffer compiler backend.  You must replace this pathname with the
 ;; appropriate one for your system or set its value before this file is loaded.
 
-(defvar *protoc-gen-lisp* #p"/local/software/package/protoc-gen-lisp/bin/protoc-gen-lisp"
+(defvar *protoc-gen-lisp* #p"/home/yuri/bin/protoc-gen-lisp"
   "Pathname of the Lisp protocol buffer compiler backend, protoc-gen-lisp.")
 
 (defvar *protoc-relative-path* nil

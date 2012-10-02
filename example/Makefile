@@ -4,7 +4,7 @@
 # elsewhere.
 
 
-PROTOC = ../google-protobuf/src/protoc
+PROTOC = protoc
 
 %.lisp: %.proto
 	$(PROTOC) --proto_path=. --lisp_out=. $<

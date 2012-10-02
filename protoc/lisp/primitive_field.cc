@@ -30,6 +30,7 @@
 
 #include "primitive_field.h"
 #include "helpers.h"
+#include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/io/printer.h>
 #include <google/protobuf/wire_format.h>
 #include "strutil.h"
@@ -321,11 +322,27 @@ void RepeatedPrimitiveFieldGenerator::GenerateOctetSize(io::Printer* printer)
     const {
   int fixed_size = FixedSize(descriptor_->type());
   if (fixed_size == -1) {
+    FieldOptions options = descriptor_->options();
     printer->Print(
         variables_,
         "(cl:let* ((x (cl:slot-value self '$name$))\n"
-        "          (length (cl:length x)))\n"
-        "  (cl:incf size (cl:* $tag_size$ length))\n"
+        "          (length (cl:length x))");
+    if (options.packed())
+      printer->Print(
+          variables_,
+          "\n"
+          "          (payload-start)");
+    printer->Print(
+        variables_,
+        ")\n");
+    if (options.packed())
+      printer->Print(
+          variables_,
+          "  (cl:setf payload-start size)\n");
+    else
+      printer->Print(variables_, "  (cl:incf size (cl:* $tag_size$ length))\n");
+    printer->Print(
+        variables_,          
         "  (cl:dotimes (i length)\n"
         "    (cl:incf size\n"
         "     ");
@@ -333,7 +350,13 @@ void RepeatedPrimitiveFieldGenerator::GenerateOctetSize(io::Printer* printer)
         OctetSize(descriptor_->type(),
                   "(cl:aref (cl:slot-value self '$name$) i)");
     printer->Print(variables_, size.c_str());
-    printer->Print(variables_, ")))");
+    printer->Print(variables_, "))");
+    if (options.packed())
+      printer->Print(
+          variables_,
+          "\n"
+          "  (cl:unless (cl:zerop length) (cl:setf size (cl:+ $tag_size$ size (varint:length64 (cl:- size payload-start)))))");
+    printer->Print(variables_, ")");
   } else {
     printer->Print(
         variables_,
@@ -350,13 +373,38 @@ void RepeatedPrimitiveFieldGenerator::GenerateAccessor(io::Printer* printer)
 void RepeatedPrimitiveFieldGenerator::GenerateSerializeWithCachedSizes(
     io::Printer* printer)
     const {
+  FieldOptions options = descriptor_->options();
   printer->Print(
       variables_,
       "(cl:let* ((v (cl:slot-value self '$name$))\n"
-      "          (length (cl:length v)))\n"
-      "  (cl:loop for i from 0 below length do\n"
-      "    (cl:setf index"
-      " (varint:encode-uint32-carefully buffer index limit $tag$))\n"
+      "          (length (cl:length v)))\n");
+  if (options.packed()) {
+    printer->Print(
+        variables_,
+        "  (cl:unless (cl:zerop length)\n"
+        "    (cl:let ((payload-size 0))\n"
+        "      (cl:dotimes (i length)\n"
+        "        (cl:incf payload-size ");
+    string size =
+      OctetSize(descriptor_->type(),
+                "(cl:aref (cl:slot-value self '$name$) i)");
+    printer->Print(variables_, size.c_str());
+    printer->Print(
+        variables_,
+        "))\n"
+        "      (cl:setf index (varint:encode-uint32-carefully buffer index limit $tag$))\n"
+        "      (cl:setf index (varint:encode-uint64-carefully buffer index limit payload-size))))\n");
+  }
+  printer->Print(
+      variables_,
+      "  (cl:loop for i from 0 below length do\n");
+  if (!options.packed())
+    printer->Print(
+        variables_,
+        "    (cl:setf index"
+        " (varint:encode-uint32-carefully buffer index limit $tag$))\n");
+  printer->Print(
+      variables_,
       "    (cl:setf index $serialize$)))");
 }
 
